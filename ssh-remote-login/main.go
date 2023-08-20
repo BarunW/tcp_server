@@ -22,32 +22,32 @@ func sshConfig() *ssh.ServerConfig {
 	}
 
 	config := &ssh.ServerConfig{
-		PasswordCallback: func(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
-			if conn.User() == "pirate43" && string(password) == "pwd" {
-				return nil, nil
-			}
-			return nil, fmt.Errorf("authentication failed")
-		},
+		// PasswordCallback: func(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
+		// 	if conn.User() == "user" && string(password) == "123" {
+		// 		fmt.Println(string(password))
+		// 		return nil, nil
+		// 	}
+		// 	return nil, fmt.Errorf("authentication failed")
+		// },
+		NoClientAuth: true,
 	}
 	config.AddHostKey(privateKey)
 	return config
 }
 
-func handleSSHConnection(conn net.Conn) {
-
-	config := sshConfig()
+func handleSSHConnection(conn net.Conn, config *ssh.ServerConfig) {
+	fmt.Println(conn.RemoteAddr(), "incoming con")
 	defer conn.Close()
-	sshConn, chans, reqs, err := ssh.NewServerConn(conn, config)
+	sshConn, chans, _, err := ssh.NewServerConn(conn, config)
 
 	if err != nil {
 		fmt.Println("Error cannot established connection", err)
 	}
 
 	fmt.Println("SSH connect established from :", sshConn.RemoteAddr())
-	go ssh.DiscardRequests(reqs)
+	// go ssh.DiscardRequests(reqs)
 	fmt.Printf("channel length %d", len(chans))
 	handleChans(chans)
-
 }
 func handleChans(chans <-chan ssh.NewChannel) {
 	fmt.Println("handle channel 66", chans)
@@ -141,19 +141,22 @@ func handleCommand(channel ssh.Channel, cmd string) {
 }
 
 func main() {
-
-	li, err := net.Listen("tcp", ":8080")
+	fmt.Println("----1-----")
+	config := sshConfig()
+	li, err := net.Listen("tcp", "0.0.0.0:2022")
 
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
 	defer li.Close()
 	for {
+		fmt.Println("-------2-----")
 		conn, err := li.Accept()
 
 		if err != nil {
 			log.Fatalln(err.Error())
 		}
-		go handleSSHConnection(conn)
+		fmt.Println(conn.RemoteAddr())
+		go handleSSHConnection(conn, config)
 	}
 }
